@@ -60,8 +60,24 @@ func (t *Server) handleRequest(conn net.Conn) {
 	t.OlineUsersMapLock.Lock()
 	t.OlineUsersMap[user.Name] = user
 	t.OlineUsersMapLock.Unlock()
-
-	t.BroadcastMessage <- user.Name + " login"
+	t.BroadcastMessage <- user.Name + ":login"
+	//接收客户端发送的消息
+	go func() {
+		buf := make([]byte, 1024)
+		for {
+			n, err := conn.Read(buf)
+			if n == 0 {
+				t.BroadcastMessage <- user.Name + " :logout"
+				delete(t.OlineUsersMap, user.Name)
+			}
+			if err != nil {
+				fmt.Println("Error:", err)
+				return
+			}
+			msg := string(buf[:n])
+			t.BroadcastMessage <- user.Name + " say:" + msg
+		}
+	}()
 
 }
 
